@@ -1,0 +1,29 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/userapi
+    username: userapi
+    password: password
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+security:
+  jwt:
+    secret: "zLkmfJZ7LKdR6D3eFl8fQPxqVm5C2tYy" # update to 256-bit in prod via Secret Manager
+    expiration-ms: 900000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info"

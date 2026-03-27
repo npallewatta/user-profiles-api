@@ -1,0 +1,25 @@
+{
+  "name": "userapi-infra",
+  "version": "0.1.0",
+  "bin": {
+    "cdk": "./node_modules/.bin/cdk"
+  },
+  "devDependencies": {
+    "@types/node": "^18.16.0",
+    "aws-cdk-lib": "^2.77.0",
+    "constructs": "^10.1.122",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.77.0",
+    "constructs": "^10.1.122"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "cdk": "cdk",
+    "deploy": "cdk deploy --all",
+    "destroy": "cdk destroy --all"
+  }
+}
