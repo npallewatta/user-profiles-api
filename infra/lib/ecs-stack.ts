@@ -17,6 +17,7 @@ export class EcsStack extends cdk.Stack {
     const cluster = new ecs.Cluster(this, 'UserApiCluster', { vpc });
 
     const repo = ecr.Repository.fromRepositoryName(this, 'UserApiEcr', 'userapi');
+    const imageTag = this.node.tryGetContext('imageTag') || 'latest';
 
     const fargateService = new ecsPatterns.ApplicationLoadBalancedFargateService(this, 'UserApiService', {
       cluster,
@@ -25,11 +26,11 @@ export class EcsStack extends cdk.Stack {
       desiredCount: 2,
       listenerPort: 80,
       taskImageOptions: {
-        image: ecs.ContainerImage.fromEcrRepository(repo, 'latest'),
+        image: ecs.ContainerImage.fromEcrRepository(repo, imageTag),
         containerPort: 8080,
         environment: {
           'SPRING_PROFILES_ACTIVE': 'prod',
-          'SPRING_DATASOURCE_URL': 'jdbc:postgresql://replace-me:5432/userapi',
+          'SPRING_DATASOURCE_URL': 'jdbc:postgresql://my-db-instance.cxabcdef.us-east-1.rds.amazonaws.com:5432/userapi',
           'SPRING_DATASOURCE_USERNAME': 'userapi',
           'SPRING_DATASOURCE_PASSWORD': 'password'
         }
