@@ -7,114 +7,94 @@ on:
     branches: [ main ]
 
 env:
-  AWS_REGION: us-east-1  # Change to your region
+  AWS_REGION: us-east-1
   ECR_REPOSITORY: userapi
   CDK_STACK_NAME: UserApiEcsStack
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven' # Built-in caching is cleaner than separate cache step
 
-    - name: Cache Maven packages
-      uses: actions/cache@v3
-      with:
-        path: ~/.m2
-        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-        restore-keys: ${{ runner.os }}-m2
+      - name: Build and Package
+        run: mvn clean package # Combines compile/package for speed
 
-    - name: Build with Maven
-      run: mvn clean compile
-
-    - name: Run tests
-      run: mvn test
-
-    - name: Package JAR
-      run: mvn package -DskipTests
-
-    - name: Upload JAR artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: userapi-jar
-        path: target/userapi-*.jar
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4 # UPDATED TO V4
+        with:
+          name: userapi-jar
+          path: target/userapi-*.jar
 
   build-and-push-docker:
     needs: build-and-test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Download JAR artifact
-      uses: actions/download-artifact@v3
-      with:
-        name: userapi-jar
-        path: target/
+      - name: Download JAR artifact
+        uses: actions/download-artifact@v4 # MATCHING V4
+        with:
+          name: userapi-jar
+          path: target/
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ us-east-1 }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }} # FIXED REFERENCE
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # FIXED REFERENCE
+          aws-region: ${{ env.AWS_REGION }} # FIXED REFERENCE
 
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v2
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build and push Docker image
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+      - name: Build and push Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Use build-args if your Dockerfile needs to know the JAR filename
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
   deploy:
     needs: build-and-push-docker
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ SECRETS_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ SECRETS_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Use Node 20 for better CDK compatibility
 
-    - name: Install CDK CLI
-      run: npm install -g aws-cdk
+      - name: Install CDK CLI
+        run: npm install -g aws-cdk
 
-    - name: Install dependencies
-      working-directory: infra
-      run: npm install
-
-    - name: CDK Bootstrap (if needed)
-      working-directory: infra
-      run: cdk bootstrap || true
-
-    - name: Deploy to AWS
-      working-directory: infra
-      run: cdk deploy --require-approval never
+      - name: Deploy to AWS
+        working-directory: infra
+        run: |
+          # Pass the dynamic image tag to your CDK Java code
+          cdk deploy --require-approval never -c imageTag=${{ github.sha }}
