@@ -3,7 +3,7 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/userapi
+    url: jdbc:postgresql://my-db-instance.cxabcdef.us-east-1.rds.amazonaws.com:5432/userapi
     username: userapi
     password: password
     driver-class-name: org.postgresql.Driver
