@@ -4,15 +4,20 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecsPatterns from 'aws-cdk-lib/aws-ecs-patterns';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
+import { DbStack } from './db-stack';
+
+export interface EcsStackProps extends cdk.StackProps {
+  dbStack: DbStack;
+}
 
 export class EcsStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props: EcsStackProps) {
     super(scope, id, props);
 
-    const vpc = new ec2.Vpc(this, 'UserApiVpc', {
-      maxAzs: 2,
-      natGateways: 1,
-    });
+    const { dbStack } = props;
+    const vpc = dbStack.vpc;
+    const dbEndpoint = dbStack.dbInstance.dbInstanceEndpointAddress;
+    const dbSecret = dbStack.dbSecret;
 
     const cluster = new ecs.Cluster(this, 'UserApiCluster', { vpc });
 
@@ -30,10 +35,12 @@ export class EcsStack extends cdk.Stack {
         containerPort: 8080,
         environment: {
           'SPRING_PROFILES_ACTIVE': 'prod',
-          'SPRING_DATASOURCE_URL': 'jdbc:postgresql://my-db-instance.cxabcdef.us-east-1.rds.amazonaws.com:5432/userapi',
+          'SPRING_DATASOURCE_URL': `jdbc:postgresql://${dbEndpoint}:5432/userapi`,
           'SPRING_DATASOURCE_USERNAME': 'userapi',
-          'SPRING_DATASOURCE_PASSWORD': 'password'
-        }
+        },
+        secrets: {
+          'SPRING_DATASOURCE_PASSWORD': ecs.Secret.fromSecretsManager(dbSecret, 'password'),
+        },
       },
       publicLoadBalancer: true,
     });
