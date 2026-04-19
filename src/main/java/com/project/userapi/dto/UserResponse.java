@@ -6,7 +6,7 @@ public class UserResponse {
     private String name;
 
     public UserResponse(Long id, String email, String name) {
-        this.id = id;
+        this.id = id; // Set the ID
         this.email = email;
         this.name = name;
     }
