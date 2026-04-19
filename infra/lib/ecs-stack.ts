@@ -53,5 +53,13 @@ export class EcsStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'LoadBalancerDNS', {
       value: fargateService.loadBalancer.loadBalancerDnsName,
     });
+    
+    // This creates the firewall rule allowing the ECS tasks to talk to the DB
+    dbStack.dbInstance.connections.allowDefaultPortFrom(fargateService.service);
+
+    fargateService.targetGroup.configureHealthCheck({
+      path: '/actuator/health',
+      healthyHttpCodes: '200',
+    });
   }
 }
