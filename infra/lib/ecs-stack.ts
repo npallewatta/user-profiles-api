@@ -43,12 +43,13 @@ export class EcsStack extends cdk.Stack {
       publicLoadBalancer: true,
     });
 
-    // CRITICAL FIX: Allow ECS tasks to talk to RDS
-    dbStack.dbInstance.connections.allowDefaultPortFrom(fargateService.service);
-
     fargateService.targetGroup.configureHealthCheck({
       path: '/actuator/health',
       healthyHttpCodes: '200',
+    });
+
+    new cdk.CfnOutput(this, 'LoadBalancerDNS', {
+      value: fargateService.loadBalancer.loadBalancerDnsName,
     });
   }
 }
