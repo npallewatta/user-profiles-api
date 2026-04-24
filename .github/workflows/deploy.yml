@@ -101,4 +101,4 @@ jobs:
         working-directory: infra
         run: |
           # Pass the dynamic image tag to your CDK Java code
-          cdk deploy --require-approval never -c imageTag=${{ github.sha }}
+          cdk deploy --all --require-approval never -c imageTag=${{ github.sha }}
