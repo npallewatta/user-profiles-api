@@ -17,7 +17,6 @@ export class EcsStack extends cdk.Stack {
     const { dbStack } = props;
     const vpc = dbStack.vpc;
     const dbEndpoint = dbStack.dbInstance.dbInstanceEndpointAddress;
-    const dbSecret = dbStack.dbSecret;
 
     const cluster = new ecs.Cluster(this, 'UserApiCluster', { vpc });
 
@@ -29,7 +28,6 @@ export class EcsStack extends cdk.Stack {
       cpu: 512,
       memoryLimitMiB: 1024,
       desiredCount: 2,
-      listenerPort: 80,
       taskImageOptions: {
         image: ecs.ContainerImage.fromEcrRepository(repo, imageTag),
         containerPort: 8080,
@@ -39,22 +37,13 @@ export class EcsStack extends cdk.Stack {
           'SPRING_DATASOURCE_USERNAME': 'userapi',
         },
         secrets: {
-          'SPRING_DATASOURCE_PASSWORD': ecs.Secret.fromSecretsManager(dbSecret, 'password'),
+          'SPRING_DATASOURCE_PASSWORD': ecs.Secret.fromSecretsManager(dbStack.dbSecret, 'password'),
         },
       },
       publicLoadBalancer: true,
     });
 
-    fargateService.targetGroup.configureHealthCheck({
-      path: '/actuator/health',
-      healthyHttpCodes: '200',
-    });
-
-    new cdk.CfnOutput(this, 'LoadBalancerDNS', {
-      value: fargateService.loadBalancer.loadBalancerDnsName,
-    });
-    
-    // This creates the firewall rule allowing the ECS tasks to talk to the DB
+    // CRITICAL FIX: Allow ECS tasks to talk to RDS
     dbStack.dbInstance.connections.allowDefaultPortFrom(fargateService.service);
 
     fargateService.targetGroup.configureHealthCheck({
