@@ -100,5 +100,6 @@ jobs:
       - name: Deploy to AWS
         working-directory: infra
         run: |
-          # Pass the dynamic image tag to your CDK Java code
-          cdk deploy --all --require-approval never -c imageTag=${{ github.sha }}
+          # Deploy DB stack first, then ECS stack to avoid CloudFormation race conditions
+          cdk deploy UserApiDbStack --require-approval never
+          cdk deploy UserApiEcsStack --require-approval never -c imageTag=${{ github.sha }}
